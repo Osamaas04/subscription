@@ -1,4 +1,7 @@
 import { getUserIdFromToken } from "@/utils/getUserIdFromToken";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(request) {
     const { priceId, user_id } = await request.json();
