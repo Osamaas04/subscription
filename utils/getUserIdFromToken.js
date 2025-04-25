@@ -1,15 +1,11 @@
-import { NextResponse } from "next/server";
-
 export const getUserIdFromToken = (request) => {
-    try {
-        const userId = request.headers.get('x-user-id');
 
-        if (!userId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        return userId;
-    } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    const user_id = request.headers.get("x-user-id")
+  
+    if (!user_id) {
+      throw new Error('Unauthorized: No user id');
     }
-};
+  
+    return user_id;
+  };
+  

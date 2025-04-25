@@ -93,7 +93,6 @@ export const POST = async (request) => {
           throw new Error("Invalid session data");
         }
 
-        // Now update or create the subscription in your MongoDB
         await Subscription.findOneAndUpdate(
           { user_id },
           {

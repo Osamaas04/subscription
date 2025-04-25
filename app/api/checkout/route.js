@@ -15,7 +15,7 @@ export async function POST(request) {
       metadata: {
         user_id 
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cancel`,
     });
   
