@@ -1,8 +1,8 @@
 import { getUserIdFromToken } from "@/utils/getUserIdFromToken";
 
 export async function POST(request) {
-    const { priceId } = await request.json();
-    const user_id = getUserIdFromToken(request);
+    const { priceId, user_id } = await request.json();
+    // const user_id = getUserIdFromToken(request);
   
     const session = await stripe.checkout.sessions.create({
       line_items: [
