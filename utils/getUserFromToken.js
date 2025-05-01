@@ -11,8 +11,6 @@ export function getUserFromToken(request) {
 
   const decoded = decode(token);
 
-  console.log(decoded.email)
-
   return {
     id: decoded.uid,      
     email: decoded.email, 

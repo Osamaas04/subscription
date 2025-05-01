@@ -93,6 +93,8 @@ export const POST = async (request) => {
           throw new Error("Invalid session data");
         }
 
+        const subscriptionDetails = await stripe.subscriptions.retrieve(subscriptionId);
+
         await Subscription.findOneAndUpdate(
           { user_id },
           {
@@ -103,11 +105,55 @@ export const POST = async (request) => {
             priceId,
             status: "active",
             billingCycle: plan.billing === "mo" ? "monthly" : "annual",
-            current_period_start: new Date(), // You can later replace with real Stripe billing info
-            current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Placeholder for 1 month
-            cancel_at_period_end: false,
+            current_period_start: new Date(subscriptionDetails.current_period_start * 1000),
+            current_period_end: new Date(subscriptionDetails.current_period_end * 1000),
+            cancel_at_period_end: subscriptionDetails.cancel_at_period_end,
           },
           { upsert: true, new: true }
+        );
+
+        break;
+      }
+
+      case "customer.subscription.updated": {
+        const subscription = event.data.object;
+
+        const newPriceId = subscription.items.data[0].price.id;
+        const plan = plans.find((p) => p.priceId === newPriceId);
+
+        await Subscription.updateOne(
+          { subscriptionId: subscription.id },
+          {
+            status: subscription.status,
+            priceId: newPriceId,
+            billingCycle: plan?.billing === "mo" ? "monthly" : "annual",
+            current_period_start: new Date(subscription.current_period_start * 1000),
+            current_period_end: new Date(subscription.current_period_end * 1000),
+            cancel_at_period_end: subscription.cancel_at_period_end,
+          }
+        );
+
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+
+        const userSub = await Subscription.findOne({ subscriptionId: subscription.id });
+
+        if (!userSub) {
+          console.warn("No matching subscription record found.");
+          break;
+        }
+
+        await Subscription.updateOne(
+          { subscriptionId: subscription.id },
+          {
+            status: subscription.status,
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            current_period_end: new Date(subscription.current_period_end * 1000),
+            current_period_start: new Date(subscription.current_period_start * 1000),
+          }
         );
 
         break;
