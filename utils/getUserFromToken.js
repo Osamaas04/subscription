@@ -9,7 +9,9 @@ export function getUserFromToken(request) {
 
   const token = authHeader.split(" ")[1]; 
 
-  const decoded = decode(token, process.env.JWT_SECRET);
+  const decoded = decode(token);
+
+  console.log(decoded.email)
 
   return {
     id: decoded.uid,      
