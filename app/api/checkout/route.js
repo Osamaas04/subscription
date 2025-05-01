@@ -20,7 +20,7 @@ export async function POST(request) {
         user_id 
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/#pricing`,
     });
   
     return NextResponse.json({ url: session.url });
