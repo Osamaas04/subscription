@@ -1,16 +1,18 @@
-export const getUserIdFromToken = (request) => {
+import { decode } from "jsonwebtoken";
 
-  const user_id = request.headers.get("x-user-id")
+export function getUserFromToken(request) {
+  const authHeader = request.headers.get("authorization");
 
-  const email = request.headers.get("Authorization")?.value;
-
-  console.log(email)
-
-  if (!user_id) {
-    throw new Error('Unauthorized: No user id');
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    throw new Error("Authorization header missing or malformed");
   }
 
+  const token = authHeader.split(" ")[1]; 
+
+  const decoded = decode(token, process.env.JWT_SECRET);
+
   return {
-    user_id
+    id: decoded.uid,      
+    email: decoded.email, 
   };
-};
+}

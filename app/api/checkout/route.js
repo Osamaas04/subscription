@@ -1,28 +1,35 @@
-import { getUserIdFromToken } from "@/utils/getUserIdFromToken";
+import { getUserFromToken } from "@/utils/getUserFromToken";
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(request) {
-    const { priceId } = await request.json();
-    const user_id = getUserIdFromToken(request);
-  
-    const session = await stripe.checkout.sessions.create({
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: "subscription",
-      metadata: {
-        user_id 
+  const { priceId } = await request.json();
+  const { id: user_id, email } = getUserFromToken(request);
+
+  const customer = await stripe.customers.create({
+    email,
+    metadata: {
+      user_id,
+    },
+  });
+
+  const session = await stripe.checkout.sessions.create({
+    customer: customer.id,
+    line_items: [
+      {
+        price: priceId,
+        quantity: 1,
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/#pricing`,
-    });
-  
-    return NextResponse.json({ url: session.url });
-  }
-  
+    ],
+    mode: "subscription",
+    metadata: {
+      user_id,
+    },
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/#pricing`,
+  });
+
+  return NextResponse.json({ url: session.url });
+}
