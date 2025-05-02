@@ -95,6 +95,10 @@ export const POST = async (request) => {
 
         const subscriptionDetails = await stripe.subscriptions.retrieve(subscriptionId);
 
+        console.log(subscriptionDetails)
+        console.log(subscriptionDetails.current_period_start * 1000)
+        console.log(subscriptionDetails.current_period_end * 1000)
+
         await Subscription.findOneAndUpdate(
           { user_id },
           {
