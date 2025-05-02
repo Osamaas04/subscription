@@ -8,53 +8,20 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 const plans = [
-  {
-    title: "Starter AI",
-    price: "$29",
-    priceId: "price_1RFvvlFkqathCLJmjPaoRSCb",
-    billing: "mo",
-  },
-  {
-    title: "Pro AI",
-    price: "$59",
-    priceId: "price_1RFvwRFkqathCLJmal7eJ6z5",
-    billing: "mo",
-  },
-  {
-    title: "Enterprise AI",
-    price: "$99",
-    priceId: "price_1RFvwzFkqathCLJmGNdYcGO9",
-    billing: "mo",
-  },
-  {
-    title: "Starter AI",
-    price: "$290",
-    priceId: "price_1RFvyAFkqathCLJm7au2D00K",
-    billing: "ann",
-  },
-  {
-    title: "Pro AI",
-    price: "$590",
-    priceId: "price_1RFvyjFkqathCLJmERiWYgVA",
-    billing: "ann",
-  },
-  {
-    title: "Enterprise AI",
-    price: "$990",
-    priceId: "price_1RFvyxFkqathCLJmZMjK5Wsx",
-    billing: "ann",
-  },
+  { title: "Starter AI", price: "$29", priceId: "price_1RFvvlFkqathCLJmjPaoRSCb", billing: "mo" },
+  { title: "Pro AI", price: "$59", priceId: "price_1RFvwRFkqathCLJmal7eJ6z5", billing: "mo" },
+  { title: "Enterprise AI", price: "$99", priceId: "price_1RFvwzFkqathCLJmGNdYcGO9", billing: "mo" },
+  { title: "Starter AI", price: "$290", priceId: "price_1RFvyAFkqathCLJm7au2D00K", billing: "ann" },
+  { title: "Pro AI", price: "$590", priceId: "price_1RFvyjFkqathCLJmERiWYgVA", billing: "ann" },
+  { title: "Enterprise AI", price: "$990", priceId: "price_1RFvyxFkqathCLJmZMjK5Wsx", billing: "ann" },
 ];
 
 export const POST = async (request) => {
   await dbConnect();
 
   const body = await request.text();
-
   const signature = headers().get("stripe-signature");
 
-  let data;
-  let eventType;
   let event;
 
   try {
@@ -64,8 +31,7 @@ export const POST = async (request) => {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  data = event.data;
-  eventType = event.type;
+  const { data, type: eventType } = event;
 
   try {
     switch (eventType) {
@@ -93,11 +59,13 @@ export const POST = async (request) => {
           throw new Error("Invalid session data");
         }
 
-        const subscriptionDetails = await stripe.subscriptions.retrieve(subscriptionId);
+        const subscriptionDetails = await stripe.subscriptions.retrieve(subscriptionId, {
+          expand: ["latest_invoice"],
+        });
 
-        console.log(subscriptionDetails)
-        console.log(subscriptionDetails.current_period_start * 1000)
-        console.log(subscriptionDetails.current_period_end * 1000)
+        const invoice = subscriptionDetails.latest_invoice;
+        const periodStart = invoice?.lines?.data[0]?.period?.start;
+        const periodEnd = invoice?.lines?.data[0]?.period?.end;
 
         await Subscription.findOneAndUpdate(
           { user_id },
@@ -109,8 +77,8 @@ export const POST = async (request) => {
             priceId,
             status: "active",
             billingCycle: plan.billing === "mo" ? "monthly" : "annual",
-            current_period_start: new Date(subscriptionDetails.current_period_start * 1000),
-            current_period_end: new Date(subscriptionDetails.current_period_end * 1000),
+            current_period_start: periodStart ? new Date(periodStart * 1000) : null,
+            current_period_end: periodEnd ? new Date(periodEnd * 1000) : null,
             cancel_at_period_end: subscriptionDetails.cancel_at_period_end,
           },
           { upsert: true, new: true }
@@ -121,9 +89,14 @@ export const POST = async (request) => {
 
       case "customer.subscription.updated": {
         const subscription = event.data.object;
-
         const newPriceId = subscription.items.data[0].price.id;
         const plan = plans.find((p) => p.priceId === newPriceId);
+
+        const invoice = subscription.latest_invoice
+          ? await stripe.invoices.retrieve(subscription.latest_invoice)
+          : null;
+        const periodStart = invoice?.lines?.data[0]?.period?.start;
+        const periodEnd = invoice?.lines?.data[0]?.period?.end;
 
         await Subscription.updateOne(
           { subscriptionId: subscription.id },
@@ -131,8 +104,8 @@ export const POST = async (request) => {
             status: subscription.status,
             priceId: newPriceId,
             billingCycle: plan?.billing === "mo" ? "monthly" : "annual",
-            current_period_start: new Date(subscription.current_period_start * 1000),
-            current_period_end: new Date(subscription.current_period_end * 1000),
+            current_period_start: periodStart ? new Date(periodStart * 1000) : null,
+            current_period_end: periodEnd ? new Date(periodEnd * 1000) : null,
             cancel_at_period_end: subscription.cancel_at_period_end,
           }
         );
@@ -142,6 +115,12 @@ export const POST = async (request) => {
 
       case "customer.subscription.deleted": {
         const subscription = event.data.object;
+
+        const invoice = subscription.latest_invoice
+          ? await stripe.invoices.retrieve(subscription.latest_invoice)
+          : null;
+        const periodStart = invoice?.lines?.data[0]?.period?.start;
+        const periodEnd = invoice?.lines?.data[0]?.period?.end;
 
         const userSub = await Subscription.findOne({ subscriptionId: subscription.id });
 
@@ -155,20 +134,16 @@ export const POST = async (request) => {
           {
             status: subscription.status,
             cancel_at_period_end: subscription.cancel_at_period_end,
-            current_period_end: new Date(subscription.current_period_end * 1000),
-            current_period_start: new Date(subscription.current_period_start * 1000),
+            current_period_end: periodEnd ? new Date(periodEnd * 1000) : null,
+            current_period_start: periodStart ? new Date(periodStart * 1000) : null,
           }
         );
 
         break;
       }
-
-
     }
   } catch (error) {
-    console.error(
-      "stripe error: " + error.message + " | EVENT TYPE: " + eventType
-    );
+    console.error("stripe error: " + error.message + " | EVENT TYPE: " + eventType);
   }
 
   return NextResponse.json({});
