@@ -68,6 +68,8 @@ export const POST = async (request) => {
         const periodEnd = invoice?.lines?.data[0]?.period?.end;
       
         const paymentMethod = session.payment_intent?.payment_method;
+
+        console.log(paymentMethod)
       
         const paymentInfo = {
           type: paymentMethod?.type || "card",
