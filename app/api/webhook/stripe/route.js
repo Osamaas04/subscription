@@ -37,36 +37,44 @@ export const POST = async (request) => {
     switch (eventType) {
       case "checkout.session.completed": {
         const session = await stripe.checkout.sessions.retrieve(data.object.id, {
-          expand: ["line_items", "customer"],
+          expand: ["line_items", "customer", "payment_intent.payment_method"],
         });
-
+      
         const { metadata, customer, subscription } = session;
         const user_id = metadata?.user_id;
         const customer_details = session.customer_details;
-
+      
         if (!user_id) {
           console.error("Missing user_id in metadata");
           throw new Error("Missing user_id in metadata");
         }
-
+      
         const email = customer_details?.email;
         const priceId = session.line_items.data[0].price.id;
         const plan = plans.find((p) => p.priceId === priceId);
         const subscriptionId = session.subscription;
-
+      
         if (!plan || !email || !subscriptionId) {
           console.error("Invalid session data");
           throw new Error("Invalid session data");
         }
-
+      
         const subscriptionDetails = await stripe.subscriptions.retrieve(subscriptionId, {
           expand: ["latest_invoice"],
         });
-
+      
         const invoice = subscriptionDetails.latest_invoice;
         const periodStart = invoice?.lines?.data[0]?.period?.start;
         const periodEnd = invoice?.lines?.data[0]?.period?.end;
-
+      
+        const paymentMethod = session.payment_intent?.payment_method;
+      
+        const paymentInfo = {
+          type: paymentMethod?.type || "card",
+          brand: paymentMethod?.card?.brand || "",
+          last4: paymentMethod?.card?.last4 || "",
+        };
+      
         await Subscription.findOneAndUpdate(
           { user_id },
           {
@@ -80,12 +88,13 @@ export const POST = async (request) => {
             current_period_start: periodStart ? new Date(periodStart * 1000) : null,
             current_period_end: periodEnd ? new Date(periodEnd * 1000) : null,
             cancel_at_period_end: subscriptionDetails.cancel_at_period_end,
+            paymentMethod: paymentInfo,
           },
           { upsert: true, new: true }
         );
-
+      
         break;
-      }
+      }      
 
       case "customer.subscription.updated": {
         const subscription = event.data.object;
