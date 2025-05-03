@@ -37,10 +37,10 @@ export const POST = async (request) => {
     switch (eventType) {
       case "checkout.session.completed": {
         const session = await stripe.checkout.sessions.retrieve(data.object.id, {
-          expand: ["line_items", "customer", "payment_intent"],
+          expand: ["line_items", "customer"],
         });
       
-        const { metadata, customer, subscription } = session;
+        const { metadata, customer, subscription: subscriptionId } = session;
         const user_id = metadata?.user_id;
         const customer_details = session.customer_details;
       
@@ -52,7 +52,6 @@ export const POST = async (request) => {
         const email = customer_details?.email;
         const priceId = session.line_items.data[0].price.id;
         const plan = plans.find((p) => p.priceId === priceId);
-        const subscriptionId = session.subscription;
       
         if (!plan || !email || !subscriptionId) {
           console.error("Invalid session data");
@@ -60,26 +59,22 @@ export const POST = async (request) => {
         }
       
         const subscriptionDetails = await stripe.subscriptions.retrieve(subscriptionId, {
-          expand: ["latest_invoice"],
+          expand: ["latest_invoice", "default_payment_method"],
         });
       
         const invoice = subscriptionDetails.latest_invoice;
         const periodStart = invoice?.lines?.data[0]?.period?.start;
         const periodEnd = invoice?.lines?.data[0]?.period?.end;
       
-        // 🔑 Get payment method ID from payment intent
-        const paymentMethodId = session.payment_intent?.payment_method;
+        const paymentMethod = subscriptionDetails.default_payment_method;
       
-        let paymentInfo = null;
-      
-        if (paymentMethodId) {
-          const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
-          paymentInfo = {
-            type: paymentMethod.type,
-            brand: paymentMethod.card?.brand || "",
-            last4: paymentMethod.card?.last4 || "",
-          };
-        }
+        const paymentInfo = paymentMethod?.type === "card"
+          ? {
+              type: paymentMethod.type,
+              brand: paymentMethod.card.brand,
+              last4: paymentMethod.card.last4,
+            }
+          : null;
       
         await Subscription.findOneAndUpdate(
           { user_id },
@@ -94,13 +89,13 @@ export const POST = async (request) => {
             current_period_start: periodStart ? new Date(periodStart * 1000) : null,
             current_period_end: periodEnd ? new Date(periodEnd * 1000) : null,
             cancel_at_period_end: subscriptionDetails.cancel_at_period_end,
-            paymentMethod: paymentInfo,
+            ...(paymentInfo && { paymentMethod: paymentInfo }),
           },
           { upsert: true, new: true }
         );
       
         break;
-      }      
+      }           
 
       case "customer.subscription.updated": {
         const subscription = event.data.object;
