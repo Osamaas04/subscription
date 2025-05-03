@@ -37,7 +37,7 @@ export const POST = async (request) => {
     switch (eventType) {
       case "checkout.session.completed": {
         const session = await stripe.checkout.sessions.retrieve(data.object.id, {
-          expand: ["line_items", "customer", "payment_intent.payment_method"],
+          expand: ["line_items", "customer", "payment_intent"],
         });
       
         const { metadata, customer, subscription } = session;
@@ -67,15 +67,19 @@ export const POST = async (request) => {
         const periodStart = invoice?.lines?.data[0]?.period?.start;
         const periodEnd = invoice?.lines?.data[0]?.period?.end;
       
-        const paymentMethod = session.payment_intent?.payment_method;
-
-        console.log(paymentMethod)
+        // 🔑 Get payment method ID from payment intent
+        const paymentMethodId = session.payment_intent?.payment_method;
       
-        const paymentInfo = {
-          type: paymentMethod?.type || "card",
-          brand: paymentMethod?.card?.brand || "",
-          last4: paymentMethod?.card?.last4 || "",
-        };
+        let paymentInfo = null;
+      
+        if (paymentMethodId) {
+          const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+          paymentInfo = {
+            type: paymentMethod.type,
+            brand: paymentMethod.card?.brand || "",
+            last4: paymentMethod.card?.last4 || "",
+          };
+        }
       
         await Subscription.findOneAndUpdate(
           { user_id },
