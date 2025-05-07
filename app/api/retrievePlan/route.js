@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/mongo";
 import { Subscription } from "@/model/subscription-model";
 
-export async function POST(request) {
+export async function GET(request) {
   try {
     const { id: user_id } = getUserFromToken(request);
 
