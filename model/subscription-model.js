@@ -22,6 +22,7 @@ const SubscriptionSchema = new Schema({
     enum: ['monthly', 'annual'],
     default: 'monthly'
   },
+  amount: {type: Number},
   current_period_start: { type: Date },
   current_period_end: { type: Date },
   cancel_at_period_end: { type: Boolean, default: false },

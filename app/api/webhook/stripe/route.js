@@ -43,6 +43,7 @@ export const POST = async (request) => {
         const { metadata, customer, subscription: subscriptionId } = session;
         const user_id = metadata?.user_id;
         const customer_details = session.customer_details;
+        const amount = session.amount_total / 100
       
         if (!user_id) {
           console.error("Missing user_id in metadata");
@@ -86,6 +87,7 @@ export const POST = async (request) => {
             priceId,
             status: "active",
             billingCycle: plan.billing === "mo" ? "monthly" : "annual",
+            amount,
             current_period_start: periodStart ? new Date(periodStart * 1000) : null,
             current_period_end: periodEnd ? new Date(periodEnd * 1000) : null,
             cancel_at_period_end: subscriptionDetails.cancel_at_period_end,
