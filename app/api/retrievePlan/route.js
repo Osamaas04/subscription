@@ -19,9 +19,9 @@ export async function GET(request) {
       return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
     }
 
-    const { billingCycle, current_period_end, paymentMethod, priceId } = plan;
+    const { billingCycle, current_period_end, paymentMethod, priceId, amount } = plan;
 
-    return NextResponse.json({ billingCycle, current_period_end, paymentMethod, priceId }, { status: 200 });
+    return NextResponse.json({ billingCycle, current_period_end, paymentMethod, priceId, amount }, { status: 200 });
 
   } catch (error) {
     console.error("Error retrieving subscription:", error);
