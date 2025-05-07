@@ -33,7 +33,7 @@ export async function GET(request) {
         return_url: "https://replix.space/dashboard?menu=Account",
       });
   
-      return NextResponse.redirect(portalSession.url);
+      return NextResponse.json({ url: portalSession.url });
     } catch (error) {
       console.error("Stripe portal error:", error);
       return NextResponse.json(
