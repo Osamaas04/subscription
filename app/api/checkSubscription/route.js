@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/mongo";
 import { Subscription } from "@/model/subscription-model";
 
-export const GET = async (request) => {
+export const POST = async (request) => {
   try {
     const formData = await request.formData();
     const email = formData.get("email");
