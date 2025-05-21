@@ -4,7 +4,8 @@ import { Subscription } from "@/model/subscription-model";
 
 export const GET = async (request) => {
   try {
-    const { email } = await request.json();
+    const formData = await request.formData();
+    const email = formData.get("email");
 
     if (!email) {
       return NextResponse.json({ error: 'Missing user email' }, { status: 400 });
